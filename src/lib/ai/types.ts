@@ -62,6 +62,11 @@ export interface GenerateResult {
   handoff: boolean
   /** Provider token usage for this call, or null when unavailable. */
   usage: AiUsage | null
+  /** True when the model reported the customer confirmed an order
+   *  (auto-reply mode). Only present when true. */
+  orderConfirmed?: boolean
+  /** One-line order summary the model attached to the confirmation. */
+  orderSummary?: string | null
 }
 
 /**

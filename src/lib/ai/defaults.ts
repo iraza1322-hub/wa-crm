@@ -13,7 +13,7 @@ import type { AiProvider } from './types'
 export const AI_PROVIDER_DEFAULT_MODEL: Record<AiProvider, string> = {
   openai: 'gpt-5.4-mini',
   anthropic: 'claude-haiku-4-5-20251001',
-  gemini: 'gemini-2.5-flash',
+  gemini: 'gemini-3.8-flash',
 }
 
 /**
@@ -22,6 +22,18 @@ export const AI_PROVIDER_DEFAULT_MODEL: Record<AiProvider, string> = {
  * stripped by `generateReply`.
  */
 export const HANDOFF_SENTINEL = '[[HANDOFF]]'
+
+/**
+ * Marker the model appends (in auto-reply mode) once the customer has
+ * clearly confirmed an order. Format: `[[ORDER_CONFIRMED: summary]]`.
+ * Parsed and stripped by `generateReply`; the auto-reply bot then tags
+ * the contact and leaves an internal note for the team.
+ */
+export const ORDER_SENTINEL_NAME = 'ORDER_CONFIRMED'
+
+/** Tag the bot puts on a contact when an order is confirmed. */
+export const ORDER_TAG_NAME = 'New Order'
+export const ORDER_TAG_COLOR = '#16a34a'
 
 /** Cap on generated reply length — keeps WhatsApp replies short and
  *  bounds token spend on the caller's own key. */
@@ -70,6 +82,9 @@ export function buildSystemPrompt(args: {
   if (mode === 'auto_reply') {
     parts.push(
       `You are replying automatically with no human in the loop. If you cannot confidently and safely help — the customer explicitly asks for a human, is upset or complaining, or the request needs information you do not have — reply with exactly ${HANDOFF_SENTINEL} and nothing else. A human agent will then take over. Prefer handing off over guessing.`,
+    )
+    parts.push(
+      `Order tagging: when the customer has clearly confirmed their final order summary (for example by replying "yes, confirm") and your reply tells them the order request was received, add this marker at the very END of that same reply: [[${ORDER_SENTINEL_NAME}: <items and quantities; customer name; phone; delivery address>]]. Fill in the summary from the conversation on a single line. Use the marker only once per confirmed order, never in any other reply, and never mention it to the customer.`,
     )
   }
 

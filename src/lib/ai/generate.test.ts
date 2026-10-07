@@ -38,6 +38,30 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
+describe('parseGeneration order marker', () => {
+  it('strips the marker and returns the summary', () => {
+    const res = parseGeneration(
+      'Thanks, your order request is received.\n[[ORDER_CONFIRMED: 12 x Aloo Samosa; Imran; 0370; Lahore]]',
+    )
+    expect(res.text).toBe('Thanks, your order request is received.')
+    expect(res.handoff).toBe(false)
+    expect(res.orderConfirmed).toBe(true)
+    expect(res.orderSummary).toBe('12 x Aloo Samosa; Imran; 0370; Lahore')
+  })
+
+  it('accepts the marker without a summary', () => {
+    const res = parseGeneration('Received! [[ORDER_CONFIRMED]]')
+    expect(res.text).toBe('Received!')
+    expect(res.orderConfirmed).toBe(true)
+    expect(res.orderSummary).toBeNull()
+  })
+
+  it('leaves normal replies without order fields', () => {
+    const res = parseGeneration('Hello there')
+    expect(res.orderConfirmed).toBeUndefined()
+  })
+})
+
 describe('parseGeneration', () => {
   it('returns text with no handoff', () => {
     expect(parseGeneration('Hello there')).toEqual({

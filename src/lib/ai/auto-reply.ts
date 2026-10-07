@@ -5,6 +5,7 @@ import { retrieveKnowledge } from './knowledge'
 import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
+import { tagConfirmedOrder } from './order-tag'
 import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
 import {
@@ -136,7 +137,8 @@ export async function dispatchInboundToAiReply(
       knowledge,
     })
 
-    const { text, handoff, usage } = await generateReply({
+    const { text, handoff, usage, orderConfirmed, orderSummary } =
+      await generateReply({
       config,
       systemPrompt,
       messages,
@@ -211,6 +213,17 @@ export async function dispatchInboundToAiReply(
       text,
       aiGenerated: true,
     })
+
+    // The customer confirmed an order: tag the contact and leave the
+    // team a note. Best-effort — never affects the reply already sent.
+    if (orderConfirmed) {
+      await tagConfirmedOrder(db, {
+        accountId,
+        contactId,
+        userId: configOwnerUserId,
+        summary: orderSummary ?? null,
+      })
+    }
   } catch (err) {
     console.error('[ai auto-reply] dispatch failed:', err)
   }

@@ -5,7 +5,11 @@ import {
   type ChatMessage,
   type GenerateResult,
 } from './types'
-import { HANDOFF_SENTINEL, aiRequestTimeoutMs } from './defaults'
+import {
+  HANDOFF_SENTINEL,
+  ORDER_SENTINEL_NAME,
+  aiRequestTimeoutMs,
+} from './defaults'
 import { generateOpenAi } from './providers/openai'
 import { generateAnthropic } from './providers/anthropic'
 import { generateGemini } from './providers/gemini'
@@ -67,6 +71,27 @@ export function parseGeneration(
   usage: AiUsage | null = null,
 ): GenerateResult {
   const handoff = raw.includes(HANDOFF_SENTINEL)
-  const text = raw.split(HANDOFF_SENTINEL).join('').trim()
-  return { text, handoff, usage }
+  let text = raw.split(HANDOFF_SENTINEL).join('')
+
+  // Order-confirmed marker: `[[ORDER_CONFIRMED]]` or
+  // `[[ORDER_CONFIRMED: summary]]`. Strip it from what the customer sees.
+  const orderRe = new RegExp(
+    `\\[\\[\\s*${ORDER_SENTINEL_NAME}\\s*(?::([^\\]]*))?\\]\\]`,
+    'g',
+  )
+  const order = { confirmed: false, summary: null as string | null }
+  text = text.replace(orderRe, (_m, summary?: string) => {
+    order.confirmed = true
+    const s = summary?.replace(/\s+/g, ' ').trim()
+    if (s && !order.summary) order.summary = s
+    return ''
+  })
+  text = text.trim()
+
+  const result: GenerateResult = { text, handoff, usage }
+  if (order.confirmed) {
+    result.orderConfirmed = true
+    result.orderSummary = order.summary
+  }
+  return result
 }
